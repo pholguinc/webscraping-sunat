@@ -1,0 +1,21 @@
+services:
+  sunat-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sunat-scraper-api
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+    volumes:
+      - ./app:/app
+    restart: unless-stopped
+    shm_size: '2gb'
+    networks:
+      - sunat-network
+
+networks:
+  sunat-network:
+    driver: bridge

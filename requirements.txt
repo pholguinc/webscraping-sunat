@@ -1,0 +1,14 @@
+# Automatización de navegadores web
+selenium==4.27.1
+
+# Gestión automática de drivers de navegadores
+webdriver-manager==4.0.2
+
+# Framework para crear APIs REST
+fastapi==0.115.6
+
+# Servidor ASGI para FastAPI
+uvicorn[standard]==0.34.0
+
+# Validación de datos y configuración
+pydantic==2.10.4
