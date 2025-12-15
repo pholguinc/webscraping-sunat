@@ -26,7 +26,7 @@ wheels/
 # Resultados de scraping
 *.json
 !ejemplo_ruc.json
-
+.env
 # IDE
 .vscode/
 .idea/
