@@ -1,18 +1,37 @@
 #!/usr/bin/env python3
 """
 API REST con FastAPI para consulta de RUC en SUNAT
+Versión optimizada con driver pool y caché
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Path
 from pydantic import BaseModel
-from typing import Optional, List, Union, Any
+from typing import Optional, List, Any
 import time
+
 from scraper import SUNATScraper
+from driver_pool import init_pool, shutdown_pool, get_driver_pool
+from cache import get_cache
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Maneja el ciclo de vida de la aplicación"""
+    # Startup: inicializar pool de drivers
+    print("🚀 Iniciando API SUNAT Scraper optimizada...")
+    init_pool(pool_size=2)
+    yield
+    # Shutdown: cerrar pool
+    print("🛑 Cerrando API...")
+    shutdown_pool()
+
 
 app = FastAPI(
     title="API Consulta RUC SUNAT",
-    description="API REST para consultar información de RUC en la página de SUNAT",
-    version="1.0.0"
+    description="API REST para consultar información de RUC en la página de SUNAT (Optimizada)",
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 
@@ -41,10 +60,11 @@ class RUCResponse(BaseModel):
     cantidad_trabajadores: Optional[List[dict]] = None
     representantes_legales: Optional[List[dict]] = None
     informacion_historica: Optional[dict] = None
-    deuda_coactiva: Optional[Any] = None  # Puede ser List[dict] o dict con mensaje
+    deuda_coactiva: Optional[Any] = None
     reactiva_peru: Optional[dict] = None
     programa_covid19: Optional[dict] = None
     establecimientos_anexos: Optional[List[dict]] = None
+    desde_cache: Optional[bool] = None
 
 
 class ErrorResponse(BaseModel):
@@ -79,11 +99,13 @@ class ConsultaLoteResponse(BaseModel):
 async def root():
     """Endpoint raíz de la API"""
     return {
-        "message": "API Consulta RUC SUNAT",
-        "version": "1.0.0",
+        "message": "API Consulta RUC SUNAT (Optimizada)",
+        "version": "2.0.0",
         "endpoints": {
             "consultar_ruc": "/consultar/{ruc}",
             "consultar_lote": "/consultar-lote",
+            "cache_stats": "/cache/stats",
+            "cache_clear": "/cache/clear",
             "documentacion": "/docs",
             "openapi": "/openapi.json"
         }
@@ -117,8 +139,7 @@ async def consultar_ruc(
     - **ruc**: Número de RUC de 11 dígitos
     - **trabajadores**: Si es True, incluye información de cantidad de trabajadores
     - **representantes**: Si es True, incluye información de representantes legales
-    - **historico**: Si es True, incluye información histórica (nombres anteriores, condiciones, direcciones)
-
+    - **historico**: Si es True, incluye información histórica
     """
     
     # Validar formato del RUC
@@ -128,11 +149,37 @@ async def consultar_ruc(
             detail="El RUC debe tener exactamente 11 dígitos numéricos"
         )
     
+    # Opciones para generar clave de caché
+    options = {
+        'trabajadores': trabajadores,
+        'representantes': representantes,
+        'historico': historico,
+        'deuda_coactiva': deuda_coactiva,
+        'reactiva_peru': reactiva_peru,
+        'programa_covid19': programa_covid19,
+        'establecimientos': establecimientos
+    }
+    
+    cache = get_cache()
+    
+    # Verificar caché primero
+    cached_result = cache.get(ruc, options)
+    if cached_result:
+        cached_result['desde_cache'] = True
+        cached_result['tiempo_procesamiento'] = "0.00 segundos (caché)"
+        return cached_result
+    
+    # Obtener driver del pool
+    pool = get_driver_pool()
+    driver = None
     scraper = SUNATScraper()
     
     try:
         inicio = time.time()
-        scraper.setup_driver()
+        
+        # Adquirir driver del pool
+        driver = pool.acquire(timeout=30)
+        scraper.driver = driver
         
         resultado = scraper.consultar_ruc(ruc)
         
@@ -144,6 +191,7 @@ async def consultar_ruc(
         
         razon_social = resultado.get('razon_social', '')
         
+        # Consultas adicionales
         if trabajadores and razon_social:
             datos_trab = scraper.extraer_cantidad_trabajadores(ruc, razon_social)
             if datos_trab:
@@ -183,6 +231,10 @@ async def consultar_ruc(
         fin = time.time()
         tiempo_total = fin - inicio
         resultado['tiempo_procesamiento'] = f"{tiempo_total:.2f} segundos"
+        resultado['desde_cache'] = False
+        
+        # Guardar en caché
+        cache.set(ruc, resultado, options)
         
         return resultado
         
@@ -194,7 +246,9 @@ async def consultar_ruc(
             detail=f"Error interno al consultar el RUC: {str(e)}"
         )
     finally:
-        scraper.close()
+        # Devolver driver al pool (no cerrar)
+        if driver:
+            pool.release(driver)
 
 
 @app.post(
@@ -212,21 +266,11 @@ async def consultar_lote(request: ConsultaLoteRequest):
     
     **Parámetros:**
     - **rucs**: Lista de números de RUC de 11 dígitos
-    - **trabajadores**: Si es True, incluye información de cantidad de trabajadores para todos los RUCs
-    - **representantes**: Si es True, incluye información de representantes legales para todos los RUCs
-    - **historico**: Si es True, incluye información histórica para todos los RUCs
-    - **deuda_coactiva**: Si es True, incluye deuda coactiva para todos los RUCs
-    - **reactiva_peru**: Si es True, incluye Reactiva Perú para todos los RUCs
-    - **programa_covid19**: Si es True, incluye Programa COVID-19 para todos los RUCs
-    - **establecimientos**: Si es True, incluye establecimientos anexos para todos los RUCs
+    - **trabajadores**: Si es True, incluye información de cantidad de trabajadores
+    - **representantes**: Si es True, incluye información de representantes legales
+    - **historico**: Si es True, incluye información histórica
     - **use_threading**: Si es True, procesa RUCs en paralelo (default: True)
     - **max_workers**: Número de threads concurrentes (default: 3, max: 5)
-    
-    **Respuesta:**
-    - Retorna un objeto con estadísticas y lista de resultados
-    - Cada resultado incluye el campo 'success' indicando si fue exitoso
-    - Los RUCs fallidos incluyen el campo 'error' con descripción del problema
-    
     """
     
     # Validar que no esté vacía la lista
@@ -243,15 +287,19 @@ async def consultar_lote(request: ConsultaLoteRequest):
             detail="Máximo 50 RUCs por consulta"
         )
     
+    pool = get_driver_pool()
+    driver = None
     scraper = SUNATScraper()
     
     try:
         inicio = time.time()
         
-        scraper.setup_driver()
+        # Adquirir driver del pool
+        driver = pool.acquire(timeout=30)
+        scraper.driver = driver
         
         # Validar max_workers
-        max_workers = min(max(1, request.max_workers), 5)  # Entre 1 y 5
+        max_workers = min(max(1, request.max_workers), 5)
         
         # Consultar múltiples RUCs
         resultados = scraper.consultar_multiples_rucs(
@@ -288,15 +336,40 @@ async def consultar_lote(request: ConsultaLoteRequest):
             detail=f"Error interno al procesar el lote: {str(e)}"
         )
     finally:
-        scraper.close()
+        if driver:
+            pool.release(driver)
 
 
 @app.get("/health", tags=["General"])
 async def health_check():
     """Verifica el estado de la API"""
+    pool = get_driver_pool()
+    cache = get_cache()
+    
     return {
         "status": "healthy",
-        "service": "SUNAT RUC Scraper API"
+        "service": "SUNAT RUC Scraper API (Optimizado)",
+        "pool_size": pool._pool_size,
+        "drivers_disponibles": pool._drivers.qsize(),
+        "cache_stats": cache.stats()
+    }
+
+
+@app.get("/cache/stats", tags=["Cache"])
+async def cache_stats():
+    """Obtiene estadísticas del caché"""
+    cache = get_cache()
+    return cache.stats()
+
+
+@app.delete("/cache/clear", tags=["Cache"])
+async def cache_clear(ruc: str = Query(None, description="RUC específico a limpiar. Si no se especifica, limpia todo.")):
+    """Limpia el caché (todo o un RUC específico)"""
+    cache = get_cache()
+    cache.invalidate(ruc)
+    return {
+        "message": f"Caché limpiado" + (f" para RUC {ruc}" if ruc else " completamente"),
+        "stats": cache.stats()
     }
 
 

@@ -57,9 +57,9 @@ class SUNATScraper:
             
             print(f"Consultando RUC: {numero_ruc}")
             input_ruc.clear()
-            time.sleep(0.5) 
+            time.sleep(0.2) 
             input_ruc.send_keys(numero_ruc)
-            time.sleep(1) 
+            time.sleep(0.3) 
             
             btn_buscar = wait.until(
                 EC.element_to_be_clickable((By.ID, "btnAceptar"))
@@ -80,7 +80,7 @@ class SUNATScraper:
                 except:
                     pass
             
-            time.sleep(1)
+            time.sleep(0.3)
             
             datos = self.extraer_datos()
             
@@ -336,7 +336,6 @@ class SUNATScraper:
         except Exception as e:
             print(f"Error al consultar cantidad de trabajadores: {str(e)}")
             return None
-
     
     def extraer_representantes_legales(self, numero_ruc, razon_social):
         """Extrae los representantes legales de la empresa"""
@@ -465,7 +464,6 @@ class SUNATScraper:
         except Exception as e:
             print(f"Error al consultar representantes legales: {str(e)}")
             return None
-
     
     def extraer_informacion_historica(self, numero_ruc, razon_social):
         """Extrae la información histórica de la empresa"""
