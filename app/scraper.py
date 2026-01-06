@@ -57,9 +57,7 @@ class SUNATScraper:
             
             print(f"Consultando RUC: {numero_ruc}")
             input_ruc.clear()
-            time.sleep(0.2) 
             input_ruc.send_keys(numero_ruc)
-            time.sleep(0.3) 
             
             btn_buscar = wait.until(
                 EC.element_to_be_clickable((By.ID, "btnAceptar"))
@@ -67,9 +65,10 @@ class SUNATScraper:
             btn_buscar.click()
             
             try:
-                WebDriverWait(self.driver, 10).until(
+                # Esperar hasta que aparezcan los datos en la página
+                WebDriverWait(self.driver, 8).until(
                     lambda driver: "jcrS00Alias" in driver.current_url or 
-                    len(driver.find_elements(By.XPATH, "//td[contains(text(), 'RUC')]")) > 0
+                    len(driver.find_elements(By.XPATH, "//h4[contains(text(), 'Número de RUC')]")) > 0
                 )
             except TimeoutException:
                 try:
@@ -79,8 +78,6 @@ class SUNATScraper:
                     return None
                 except:
                     pass
-            
-            time.sleep(0.3)
             
             datos = self.extraer_datos()
             
@@ -225,20 +222,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfNumTra")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(3)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(3)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue la tabla
+                WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//table[@class='table']"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -269,7 +258,9 @@ class SUNATScraper:
                 """
                 
                 self.driver.execute_script(script)
-                time.sleep(3)
+                WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//table[@class='table']"))
+                )
             
             try:
                 screenshot_path = f"/tmp/sunat_trabajadores_{numero_ruc}.png"
@@ -352,20 +343,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfRepLeg")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(3)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(3)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue la tabla
+                WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//table[@class='table']"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -396,7 +379,9 @@ class SUNATScraper:
                 """
                 
                 self.driver.execute_script(script)
-                time.sleep(3)
+                WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//table[@class='table']"))
+                )
             
             try:
                 screenshot_path = f"/tmp/sunat_representantes_{numero_ruc}.png"
@@ -481,20 +466,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfHis")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(5)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(5)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue el panel de resultados
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -526,21 +503,11 @@ class SUNATScraper:
                 """
                 
                 self.driver.execute_script(script)
-                time.sleep(6)  # Aumentado a 6 segundos
-            
-            print(f"URL actual: {self.driver.current_url}")
-            
-            # Esperar a que la página cargue completamente - intentar esperar por el panel
-            try:
-                wait = WebDriverWait(self.driver, 15)
-                # Esperar por el div que contiene los resultados
-                wait.until(
+                WebDriverWait(self.driver, 8).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
                 )
-                print("✓ Panel de resultados detectado")
-                time.sleep(3)  # Espera adicional para que las tablas se rendericen
-            except TimeoutException:
-                print("⚠ Timeout esperando el panel de resultados")
+            
+            print(f"URL actual: {self.driver.current_url}")
             
             # Intentar obtener el HTML para debug
             try:
@@ -772,20 +739,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfDeuCoa")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(3)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(3)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue el panel de resultados
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -816,110 +775,103 @@ class SUNATScraper:
                 form.submit();
                 """
                 self.driver.execute_script(script)
-                time.sleep(3)
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
             
-            # Esperar a que cargue la página de deuda coactiva
+            # Ya se esperó por el panel, proceder directamente
+            print(f"\n📍 URL actual: {self.driver.current_url}")
+            
+            # Buscar la tabla de deuda coactiva
+            deuda_coactiva = []
+            
             try:
-                wait = WebDriverWait(self.driver, 10)
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "panel-primary")))
-                time.sleep(2)
+                # La tabla está dentro de un div con clase table-responsive
+                tablas = self.driver.find_elements(By.CSS_SELECTOR, "div.table-responsive table.table")
                 
-                print(f"\n📍 URL actual: {self.driver.current_url}")
+                if not tablas:
+                    # Intentar con selector más general
+                    tablas = self.driver.find_elements(By.TAG_NAME, "table")
                 
-                # Buscar la tabla de deuda coactiva
-                deuda_coactiva = []
+                print(f"\n🔍 Encontradas {len(tablas)} tablas en la página")
                 
-                try:
-                    # La tabla está dentro de un div con clase table-responsive
-                    tablas = self.driver.find_elements(By.CSS_SELECTOR, "div.table-responsive table.table")
+                for idx, tabla in enumerate(tablas):
+                    print(f"\n📊 Procesando tabla {idx + 1}...")
                     
-                    if not tablas:
-                        # Intentar con selector más general
-                        tablas = self.driver.find_elements(By.TAG_NAME, "table")
-                    
-                    print(f"\n🔍 Encontradas {len(tablas)} tablas en la página")
-                    
-                    for idx, tabla in enumerate(tablas):
-                        print(f"\n📊 Procesando tabla {idx + 1}...")
+                    try:
+                        # Buscar encabezados
+                        headers = tabla.find_elements(By.TAG_NAME, "th")
+                        header_texts = [h.text.strip() for h in headers]
                         
-                        try:
-                            # Buscar encabezados
-                            headers = tabla.find_elements(By.TAG_NAME, "th")
-                            header_texts = [h.text.strip() for h in headers]
+                        print(f"   Encabezados: {header_texts}")
+                        
+                        # Verificar si es la tabla de deuda (tiene 4 columnas específicas)
+                        if len(header_texts) >= 4 and any("Monto" in h for h in header_texts):
+                            print(f"   → Identificada como tabla de Deuda Coactiva")
                             
-                            print(f"   Encabezados: {header_texts}")
+                            # Extraer filas
+                            filas = tabla.find_elements(By.TAG_NAME, "tbody")
+                            if filas:
+                                filas = filas[0].find_elements(By.TAG_NAME, "tr")
+                            else:
+                                filas = tabla.find_elements(By.TAG_NAME, "tr")[1:]  # Skip header
                             
-                            # Verificar si es la tabla de deuda (tiene 4 columnas específicas)
-                            if len(header_texts) >= 4 and any("Monto" in h for h in header_texts):
-                                print(f"   → Identificada como tabla de Deuda Coactiva")
+                            print(f"   Filas encontradas: {len(filas)}")
+                            
+                            for fila in filas:
+                                celdas = fila.find_elements(By.TAG_NAME, "td")
                                 
-                                # Extraer filas
-                                filas = tabla.find_elements(By.TAG_NAME, "tbody")
-                                if filas:
-                                    filas = filas[0].find_elements(By.TAG_NAME, "tr")
-                                else:
-                                    filas = tabla.find_elements(By.TAG_NAME, "tr")[1:]  # Skip header
-                                
-                                print(f"   Filas encontradas: {len(filas)}")
-                                
-                                for fila in filas:
-                                    celdas = fila.find_elements(By.TAG_NAME, "td")
+                                if len(celdas) >= 4:
+                                    monto = celdas[0].text.strip()
+                                    periodo = celdas[1].text.strip()
+                                    fecha_inicio = celdas[2].text.strip()
+                                    entidad = celdas[3].text.strip()
                                     
-                                    if len(celdas) >= 4:
-                                        monto = celdas[0].text.strip()
-                                        periodo = celdas[1].text.strip()
-                                        fecha_inicio = celdas[2].text.strip()
-                                        entidad = celdas[3].text.strip()
-                                        
-                                        if monto and periodo:
-                                            registro = {
-                                                'monto': monto,
-                                                'periodo_tributario': periodo,
-                                                'fecha_inicio_cobranza': fecha_inicio,
-                                                'entidad': entidad
-                                            }
-                                            deuda_coactiva.append(registro)
-                                            print(f"      {periodo}: S/ {monto} - {entidad}")
-                        
-                        except Exception as e:
-                            print(f"   ⚠ Error procesando tabla {idx + 1}: {str(e)}")
-                            continue
+                                    if monto and periodo:
+                                        registro = {
+                                            'monto': monto,
+                                            'periodo_tributario': periodo,
+                                            'fecha_inicio_cobranza': fecha_inicio,
+                                            'entidad': entidad
+                                        }
+                                        deuda_coactiva.append(registro)
+                                        print(f"      {periodo}: S/ {monto} - {entidad}")
                     
-                    if len(deuda_coactiva) > 0:
-                        print(f"\n✓ Extraídos {len(deuda_coactiva)} registros de deuda coactiva")
-                        return deuda_coactiva
-                    else:
-                        # Buscar el mensaje cuando no hay deuda
-                        try:
-                            mensaje_elemento = self.driver.find_element(By.CSS_SELECTOR, "div.list-group-item div.col-sm-12")
-                            mensaje = mensaje_elemento.text.strip()
-                            
-                            if mensaje:
-                                print(f"ℹ Mensaje encontrado: {mensaje}")
-                                return {
-                                    'tiene_deuda': False,
-                                    'mensaje': mensaje
-                                }
-                        except NoSuchElementException:
-                            pass
+                    except Exception as e:
+                        print(f"   ⚠ Error procesando tabla {idx + 1}: {str(e)}")
+                        continue
+                
+                if len(deuda_coactiva) > 0:
+                    print(f"\n✓ Extraídos {len(deuda_coactiva)} registros de deuda coactiva")
+                    return deuda_coactiva
+                else:
+                    # Buscar el mensaje cuando no hay deuda
+                    try:
+                        mensaje_elemento = self.driver.find_element(By.CSS_SELECTOR, "div.list-group-item div.col-sm-12")
+                        mensaje = mensaje_elemento.text.strip()
                         
-                        print("ℹ No se encontró deuda coactiva registrada")
-                        return {
-                            'tiene_deuda': False,
-                            'mensaje': 'No se encontró información de deuda coactiva'
-                        }
-                        
-                except NoSuchElementException:
-                    print("✗ No se encontraron tablas de deuda coactiva")
-                    return None
-                except Exception as e:
-                    print(f"Error al extraer deuda coactiva: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    return None
+                        if mensaje:
+                            print(f"ℹ Mensaje encontrado: {mensaje}")
+                            return {
+                                'tiene_deuda': False,
+                                'mensaje': mensaje
+                            }
+                    except NoSuchElementException:
+                        pass
                     
+                    print("ℹ No se encontró deuda coactiva registrada")
+                    return {
+                        'tiene_deuda': False,
+                        'mensaje': 'No se encontró información de deuda coactiva'
+                    }
+                    
+            except NoSuchElementException:
+                print("✗ No se encontraron tablas de deuda coactiva")
+                return None
             except Exception as e:
-                print(f"Error esperando la página de deuda coactiva: {str(e)}")
+                print(f"Error al extraer deuda coactiva: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return None
                 
         except Exception as e:
@@ -954,20 +906,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfReaPer")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(3)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(3)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue el panel de resultados
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -998,74 +942,67 @@ class SUNATScraper:
                 form.submit();
                 """
                 self.driver.execute_script(script)
-                time.sleep(3)
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
             
-            # Esperar a que cargue la página de Reactiva Perú
+            # Ya se esperó por el panel, proceder directamente
+            print(f"\n📍 URL actual: {self.driver.current_url}")
+            
+            # Extraer información de la página
+            reactiva_info = {}
+            
             try:
-                wait = WebDriverWait(self.driver, 10)
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "panel-primary")))
-                time.sleep(2)
+                # Buscar el label de SI/NO
+                tiene_deuda = None
+                fecha_actualizacion = None
+                decreto = None
                 
-                print(f"\n📍 URL actual: {self.driver.current_url}")
-                
-                # Extraer información de la página
-                reactiva_info = {}
-                
+                # Buscar por label-danger (SI) o label-success (NO)
                 try:
-                    # Buscar el label de SI/NO
-                    tiene_deuda = None
-                    fecha_actualizacion = None
-                    decreto = None
-                    
-                    # Buscar por label-danger (SI) o label-success (NO)
-                    try:
-                        label_element = self.driver.find_element(By.CSS_SELECTOR, "span.label")
-                        tiene_deuda = label_element.text.strip()
-                        print(f"   ✓ Estado encontrado: {tiene_deuda}")
-                    except NoSuchElementException:
-                        print("   ⚠ No se encontró el label de estado")
-                    
-                    # Buscar la fecha de actualización
-                    try:
-                        h5_elements = self.driver.find_elements(By.TAG_NAME, "h5")
-                        for h5 in h5_elements:
-                            texto = h5.text.strip()
-                            if "actualizada al" in texto.lower():
-                                # Extraer la fecha del texto
-                                import re
-                                match = re.search(r'(\d{2}/\d{2}/\d{4})', texto)
-                                if match:
-                                    fecha_actualizacion = match.group(1)
-                                    print(f"   ✓ Fecha de actualización: {fecha_actualizacion}")
-                            elif "decreto" in texto.lower():
-                                decreto = texto
-                                print(f"   ✓ Decreto: {decreto}")
-                    except Exception as e:
-                        print(f"   ⚠ Error extrayendo detalles: {str(e)}")
-                    
-                    if tiene_deuda:
-                        reactiva_info = {
-                            'tiene_deuda_mayor_1_uit': tiene_deuda,
-                            'fecha_actualizacion': fecha_actualizacion,
-                            'decreto': decreto
-                        }
-                        print(f"\n✓ Información de Reactiva Perú extraída")
-                        return reactiva_info
-                    else:
-                        print("ℹ No se encontró información de Reactiva Perú")
-                        return None
-                        
+                    label_element = self.driver.find_element(By.CSS_SELECTOR, "span.label")
+                    tiene_deuda = label_element.text.strip()
+                    print(f"   ✓ Estado encontrado: {tiene_deuda}")
                 except NoSuchElementException:
-                    print("✗ No se encontró información de Reactiva Perú")
-                    return None
+                    print("   ⚠ No se encontró el label de estado")
+                
+                # Buscar la fecha de actualización
+                try:
+                    h5_elements = self.driver.find_elements(By.TAG_NAME, "h5")
+                    for h5 in h5_elements:
+                        texto = h5.text.strip()
+                        if "actualizada al" in texto.lower():
+                            # Extraer la fecha del texto
+                            import re
+                            match = re.search(r'(\d{2}/\d{2}/\d{4})', texto)
+                            if match:
+                                fecha_actualizacion = match.group(1)
+                                print(f"   ✓ Fecha de actualización: {fecha_actualizacion}")
+                        elif "decreto" in texto.lower():
+                            decreto = texto
+                            print(f"   ✓ Decreto: {decreto}")
                 except Exception as e:
-                    print(f"Error al extraer Reactiva Perú: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                    print(f"   ⚠ Error extrayendo detalles: {str(e)}")
+                
+                if tiene_deuda:
+                    reactiva_info = {
+                        'tiene_deuda_mayor_1_uit': tiene_deuda,
+                        'fecha_actualizacion': fecha_actualizacion,
+                        'decreto': decreto
+                    }
+                    print(f"\n✓ Información de Reactiva Perú extraída")
+                    return reactiva_info
+                else:
+                    print("ℹ No se encontró información de Reactiva Perú")
                     return None
                     
+            except NoSuchElementException:
+                print("✗ No se encontró información de Reactiva Perú")
+                return None
             except Exception as e:
-                print(f"Error esperando la página de Reactiva Perú: {str(e)}")
+                print(f"Error al extraer Reactiva Perú: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return None
                 
         except Exception as e:
@@ -1100,21 +1037,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfCovid")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(3)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    # Si no es clickeable, hacer clic con JavaScript
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(3)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue el panel de resultados
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -1145,72 +1073,65 @@ class SUNATScraper:
                 form.submit();
                 """
                 self.driver.execute_script(script)
-                time.sleep(3)
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "panel-primary"))
+                )
             
-            # Esperar a que cargue la página
+            # Ya se esperó por el panel, proceder directamente
+            print(f"\n📍 URL actual: {self.driver.current_url}")
+            
+            # Extraer información
+            covid_info = {}
+            
             try:
-                wait = WebDriverWait(self.driver, 10)
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, "panel-primary")))
-                time.sleep(2)
+                tiene_deuda = None
+                fecha_actualizacion = None
+                ley = None
                 
-                print(f"\n📍 URL actual: {self.driver.current_url}")
-                
-                # Extraer información
-                covid_info = {}
-                
+                #  Buscar el label de SI/NO
                 try:
-                    tiene_deuda = None
-                    fecha_actualizacion = None
-                    ley = None
-                    
-                    #  Buscar el label de SI/NO
-                    try:
-                        label_element = self.driver.find_element(By.CSS_SELECTOR, "span.label")
-                        tiene_deuda = label_element.text.strip()
-                        print(f"   ✓ Estado encontrado: {tiene_deuda}")
-                    except NoSuchElementException:
-                        print("   ⚠ No se encontró el label de estado")
-                    
-                    # Buscar fecha y ley
-                    try:
-                        h5_elements = self.driver.find_elements(By.TAG_NAME, "h5")
-                        for h5 in h5_elements:
-                            texto = h5.text.strip()
-                            if "actualizada al" in texto.lower():
-                                import re
-                                match = re.search(r'(\d{2}/\d{2}/\d{4})', texto)
-                                if match:
-                                    fecha_actualizacion = match.group(1)
-                                    print(f"   ✓ Fecha de actualización: {fecha_actualizacion}")
-                            elif "ley" in texto.lower():
-                                ley = texto
-                                print(f"   ✓ Ley: {ley}")
-                    except Exception as e:
-                        print(f"   ⚠ Error extrayendo detalles: {str(e)}")
-                    
-                    if tiene_deuda:
-                        covid_info = {
-                            'tiene_deuda_mayor_1_uit': tiene_deuda,
-                            'fecha_actualizacion': fecha_actualizacion,
-                            'ley': ley
-                        }
-                        print(f"\n✓ Información del Programa COVID-19 extraída")
-                        return covid_info
-                    else:
-                        print("ℹ No se encontró información del Programa COVID-19")
-                        return None
-                        
+                    label_element = self.driver.find_element(By.CSS_SELECTOR, "span.label")
+                    tiene_deuda = label_element.text.strip()
+                    print(f"   ✓ Estado encontrado: {tiene_deuda}")
                 except NoSuchElementException:
-                    print("✗ No se encontró información del Programa COVID-19")
-                    return None
+                    print("   ⚠ No se encontró el label de estado")
+                
+                # Buscar fecha y ley
+                try:
+                    h5_elements = self.driver.find_elements(By.TAG_NAME, "h5")
+                    for h5 in h5_elements:
+                        texto = h5.text.strip()
+                        if "actualizada al" in texto.lower():
+                            import re
+                            match = re.search(r'(\d{2}/\d{2}/\d{4})', texto)
+                            if match:
+                                fecha_actualizacion = match.group(1)
+                                print(f"   ✓ Fecha de actualización: {fecha_actualizacion}")
+                        elif "ley" in texto.lower():
+                            ley = texto
+                            print(f"   ✓ Ley: {ley}")
                 except Exception as e:
-                    print(f"Error al extraer Programa COVID-19: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                    print(f"   ⚠ Error extrayendo detalles: {str(e)}")
+                
+                if tiene_deuda:
+                    covid_info = {
+                        'tiene_deuda_mayor_1_uit': tiene_deuda,
+                        'fecha_actualizacion': fecha_actualizacion,
+                        'ley': ley
+                    }
+                    print(f"\n✓ Información del Programa COVID-19 extraída")
+                    return covid_info
+                else:
+                    print("ℹ No se encontró información del Programa COVID-19")
                     return None
                     
+            except NoSuchElementException:
+                print("✗ No se encontró información del Programa COVID-19")
+                return None
             except Exception as e:
-                print(f"Error esperando la página del Programa COVID-19: {str(e)}")
+                print(f"Error al extraer Programa COVID-19: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return None
                 
         except Exception as e:
@@ -1245,20 +1166,12 @@ class SUNATScraper:
                 )
                 print("✓ Botón encontrado en la página")
                 
-                # Hacer scroll hacia el botón para asegurar que sea visible
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", boton)
-                time.sleep(1)
-                
-                # Intentar esperar a que sea clickeable
-                try:
-                    boton = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "btnInfLocAnex")))
-                    print("✓ Haciendo clic en el botón...")
-                    boton.click()
-                    time.sleep(3)
-                except TimeoutException:
-                    print("⚠ Botón no clickeable, usando JavaScript...")
-                    self.driver.execute_script("arguments[0].click();", boton)
-                    time.sleep(3)
+                # Usar JavaScript directamente para mayor velocidad
+                self.driver.execute_script("arguments[0].click();", boton)
+                # Esperar a que cargue la tabla
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "table.table"))
+                )
                     
             except (NoSuchElementException, TimeoutException):
                 print("ℹ Botón no encontrado o no visible, intentando envío directo del formulario...")
@@ -1289,71 +1202,63 @@ class SUNATScraper:
                 form.submit();
                 """
                 self.driver.execute_script(script)
-                time.sleep(3)
+                WebDriverWait(self.driver, 8).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "table.table"))
+                )
             
-            # Esperar a que cargue la página
+            # Ya se esperó por la tabla, proceder directamente
+            print(f"\n📍 URL actual: {self.driver.current_url}")
+            
+            # Buscar tabla de establecimientos
+            establecimientos = []
+            
             try:
-                wait = WebDriverWait(self.driver, 10)
-                # Buscar por la tabla
-                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.table")))
-                time.sleep(2)
+                tabla = self.driver.find_element(By.CSS_SELECTOR, "table.table")
                 
-                print(f"\n📍 URL actual: {self.driver.current_url}")
+                # Verificar encabezados
+                headers = tabla.find_elements(By.TAG_NAME, "th")
+                header_texts = [h.text.strip() for h in headers]
+                print(f"\n   Encabezados encontrados: {header_texts}")
                 
-                # Buscar tabla de establecimientos
-                establecimientos = []
+                # Extraer filas del tbody
+                tbody = tabla.find_element(By.TAG_NAME, "tbody")
+                filas = tbody.find_elements(By.TAG_NAME, "tr")
                 
-                try:
-                    tabla = self.driver.find_element(By.CSS_SELECTOR, "table.table")
+                print(f"   Filas encontradas: {len(filas)}")
+                
+                for fila in filas:
+                    celdas = fila.find_elements(By.TAG_NAME, "td")
                     
-                    # Verificar encabezados
-                    headers = tabla.find_elements(By.TAG_NAME, "th")
-                    header_texts = [h.text.strip() for h in headers]
-                    print(f"\n   Encabezados encontrados: {header_texts}")
-                    
-                    # Extraer filas del tbody
-                    tbody = tabla.find_element(By.TAG_NAME, "tbody")
-                    filas = tbody.find_elements(By.TAG_NAME, "tr")
-                    
-                    print(f"   Filas encontradas: {len(filas)}")
-                    
-                    for fila in filas:
-                        celdas = fila.find_elements(By.TAG_NAME, "td")
+                    if len(celdas) >= 4:
+                        codigo = celdas[0].text.strip()
+                        tipo = celdas[1].text.strip()
+                        direccion = celdas[2].text.strip()
+                        actividad = celdas[3].text.strip()
                         
-                        if len(celdas) >= 4:
-                            codigo = celdas[0].text.strip()
-                            tipo = celdas[1].text.strip()
-                            direccion = celdas[2].text.strip()
-                            actividad = celdas[3].text.strip()
-                            
-                            if codigo:
-                                establecimiento = {
-                                    'codigo': codigo,
-                                    'tipo_establecimiento': tipo,
-                                    'direccion': direccion,
-                                    'actividad_economica': actividad
-                                }
-                                establecimientos.append(establecimiento)
-                                print(f"      {codigo}: {tipo} - {direccion[:50]}...")
-                    
-                    if len(establecimientos) > 0:
-                        print(f"\n✓ Extraídos {len(establecimientos)} establecimientos anexos")
-                        return establecimientos
-                    else:
-                        print("ℹ No se encontraron establecimientos anexos")
-                        return None
-                        
-                except NoSuchElementException:
-                    print("✗ No se encontró tabla de establecimientos anexos")
-                    return None
-                except Exception as e:
-                    print(f"Error al extraer establecimientos: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
+                        if codigo:
+                            establecimiento = {
+                                'codigo': codigo,
+                                'tipo_establecimiento': tipo,
+                                'direccion': direccion,
+                                'actividad_economica': actividad
+                            }
+                            establecimientos.append(establecimiento)
+                            print(f"      {codigo}: {tipo} - {direccion[:50]}...")
+                
+                if len(establecimientos) > 0:
+                    print(f"\n✓ Extraídos {len(establecimientos)} establecimientos anexos")
+                    return establecimientos
+                else:
+                    print("ℹ No se encontraron establecimientos anexos")
                     return None
                     
+            except NoSuchElementException:
+                print("✗ No se encontró tabla de establecimientos anexos")
+                return None
             except Exception as e:
-                print(f"Error esperando la página de establecimientos: {str(e)}")
+                print(f"Error al extraer establecimientos: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return None
                 
         except Exception as e:
